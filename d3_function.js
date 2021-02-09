@@ -49,3 +49,41 @@ queue.awaitAll(function(error, dataset) {
             return  d;
       });
 });
+
+
+    var width = 500;
+    var height = 500;
+
+// CREATE SVG Element
+    var svg = d3.select('svg_test')
+                .append('svg')
+                .attr('width',width)
+                .attr('height', height);
+
+// CREATE group element
+    var g = svg.append('g')
+                .attr('transform', function (d, i) {
+                        return "translate(0,0)";
+                });
+    
+    var filename_test = "dataset/CIA_01";
+
+// CREATE and Append elipse element into Group
+    var ellips = g.append('ellipse')
+                .attr('cx', 250)
+                .attr('cy', 50)
+                .attr('rx', 150)
+                .attr('ry',50)
+                .attr('fill','green')
+                .attr('opacity', 0.5)
+                .append('text')
+// CREATE and append text element into Group
+                g.append('text')
+                .attr('x', 150)
+                .attr('y', 50)
+                .attr('stroke', 'steelblue')
+                .attr('font-family', 'sans-serif')
+                .attr('font-size', '24px')
+                .text(filename_test);
+                
+
