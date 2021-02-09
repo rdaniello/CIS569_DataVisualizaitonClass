@@ -85,5 +85,3 @@ queue.awaitAll(function(error, dataset) {
                 .attr('font-family', 'sans-serif')
                 .attr('font-size', '24px')
                 .text(filename_test);
-                
-
