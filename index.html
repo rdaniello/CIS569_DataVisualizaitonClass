@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-      <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+      <script src="https://d3js.org/d3.v6.js" charset="utf-8"></script>
       <head> 
             <title> Data Visualization _ CIS569 </title> 
             <meta charset="utf-8"> 
@@ -9,12 +9,14 @@
       <body> 
             <h2>Data Visualization _ CIS569</h2>
             
-            <div class="split left" style="height:100%">
+            <div id='listDiv' class="split left" >File List:
                   <svg id='list'></svg>
             </div>
                 
             <div class="split right">
-                  <svg id='detail'></svg>
+                  <div id="detail">
+
+                  </div>
             </div>
 
             <svg_test></svg_test> 
@@ -29,24 +31,40 @@
 </html>
 
 <script>
-      let fileNames = null;
-      main();
+      let fileNames = getFileNames();
+      let dataJSON = [];
+      let selectedFiles = []; // files that have been selected for display
+      let isDragged = false;
 
-      function main(){
-            fileNames = getFileNames();
+      // load the contents of all files
+      var promises = [];
+      fileNames.forEach(function(d){
+            promises.push(d3.text(d));
+      });
+
+      // once file contents loaded - call main
+      Promise.all(promises).then(function(data){
+            main(data);
+      });
+      
+
+      function main(data){
+            // build the array of JSON objects
+            dataJSON = buildJSON(data);
+            console.log(dataJSON);
 
             //  initialize the view box for the list
             let vbStr = "0 0 100 " + fileNames.length.toString();
             let list = d3.select('#list');
-            list.style('width','70vw')
+            list
                   .style('height',fileNames.length * 12)
                   .attr('viewBox', vbStr)
             
             let detail = d3.select('#detail');
             detail.style('width','70vw')
-                  .style('height',fileNames.length * 12)
+                  .style('height','100%')
                   .attr('viewBox', vbStr)
-            
+                  
             // draw the list
             drawList();
       }
@@ -55,109 +73,254 @@
             let list = d3.select('#list');
 
             // remove all the text elements present
-            list.selectAll('text').remove();
+            //list.selectAll('text').remove();
 
             // add text elements based on current file name list
             list.selectAll('text')
-                  .data(fileNames)
-                  .enter()
-                  .append('text')
-                  .text(function(d){return d;})
-                  .attr('x',function (){
-                        return 1
+                  .data(dataJSON)
+                  .join('text')
+                  .text(function(d){return d.name;})
+                  .attr('x',function (d){
+                        return 1;
                   })
                   .attr('y',function (d,i){
-                        return i;
+                        return i + 1;
                   })
                   .style('font-size','.9pt')
+                  // assign text color based on whether or not file selected
+                  .classed('selected', function(d){
+                        if(d.selected){
+                              return true;
+                        }
+                        else{
+                              return false;
+                        }
+                  })
                   .on('mouseenter', function (mouseData, d) {
                         try {
                         d3.select(this)
-                              .style('background-color', 'rgb(247, 244, 241)')
-                              .style('border', 'solid 1px black');
+                              .classed('listHover', true)
+
                         } catch {}
-                        })
+                  })
                   .on('mouseleave', function (mouseData, d) {
                         try {
                         d3.select(this)
-                              .style('background-color', 'rgba(0,0,0,0)')
-                              .style('border', 'solid 0px black');
+                              .classed('listHover', false)
+
                         } catch {}
-                        })
+                  })
                   .call(d3.drag()
                         .on("start", dragstarted)
                         .on("drag", dragged)
                         .on("end", dragended)
                   )
+                  // add the filenames to selected files array if clicked
+                  // remove if already present
+                  .on('click', function(event,d){
+                        try{
+                              // if filename selected then remove 
+                              if(d.selected == 1){
+                                    d.selected=0;
+ 
+                                   // change appearance
+                                   d3.select(this)
+                                          .classed('selected', false)
+                              }
+                              // add the the filename to the selected filename list
+                              else{
+                                    d.selected = 1
+
+                                    // change appearance
+                                    d3.select(this)
+                                          .classed('selected', true)
+                              }
+                        }
+                        catch{}
+                  });
       }
 
       function dragstarted(d) {
+            console.log("drag started" + event + ":::" + d)
             d3.select(this)
-            .attr('fill', "red")
+                  
       }
 
-      function dragged(d,i) {
-            console.log(d3.event.x);
+      function dragged(event,d) {
+            console.log("drag");
+
+            // set the flag that element has been dragged - ie not a click
+            isDragged = true;
 
             // if in list box
-            if(d3.event.x < 20){
+            if(event.x < 20){
                   // adjust x and y of object being dragged
                   d3.select(this)
-                        .attr('x',d3.event.x)
-                        .attr('y',d3.event.y)
+                        .attr('x', event.x)
+                        .attr('y', event.y)
+                        .classed('listDrag', true)
+                        .classed('listHover', false)
             }
             // then add '+' to detail pane
             else{
                   let detail = d3.select('#detail');
-                  detail.selectAll('text').remove();
-                  detail.append('text')
-                        .text("+ " + fileNames[i])
-                        .attr('x',d3.event.x - 20)
-                        .attr('y',d3.event.y)
-                        .attr('fill','red')
-                        .style('font-size','2pt')
+                  // selected the hover text by class - remove old hover
+                  detail.selectAll('.detailHover').remove();
+                  let cood = d3.pointer(event)
+                  console.log(cood);
+
+                  // get the number of selected files
+                  let selectedCount = getSelected().length;
+
+                  // get width of left pane
+                  let lPane = d3.select('#listDiv')
+                  let listbox = lPane.node().getBoundingClientRect();
+                  let listwidth = listbox.width
+
+                  // add the updated hover add 
+                  detail.append('div')
+                        .text("+ " + selectedCount + " Selected Files")
+                        .style('left',(cood[0] - listwidth).toString() + "px")
+                        .style('top',cood[1].toString() + "px")
+                        .classed('detailHover', true)
+                        .style('font-size','20pt')
             }
       }
 
-      function dragended(d, i) {
-            let selectedFile  = fileNames[i];
-            console.log(selectedFile);
+      function dragended(event, d) {
+            // remove item drag class
+            d3.select(this).classed('listDrag',false);
 
-            // decide if we are re-ordering list or displaying file
-            // based on how far right the object is dragged
-            if(d3.event.x < 20){
-                  // get the new index from the event's 'y'
-                  let newY = Math.ceil(d3.event.y);
-                  if(newY < 0){newy = 0};
-                  if(newY > fileNames.length -1 ){newY = fileNames.length -1};
+            // only move if item is dragged - set in dragged event
+            // otherwise let click event happen
+            if(isDragged){
+                  console.log(event.y + "     " + d);
+                  // get the index of selected file
+                  let idx = dataJSON.indexOf(d);
+
+                  let selectedFile  = d;
+                  console.log("drag ended");
+
+                  let newY = Math.ceil(event.y);
+
+                  // decide if we are re-ordering list or displaying file
+                  // based on how far right the object is dragged
+                  if(event.x < 20){ 
+                        // put the element back where is belongs
+                        d3.select(this)
+                              .attr('x', 1)
+                              .attr('y', idx)
+                              .classed('listDrag',false)
+
+                        // rearrange the filesName array based on new order
+                        // get the new index from the event's 'y'
+                        let newY = Math.ceil(event.y);
+                        if(newY < 0){newy = 0};
+                        if(newY > dataJSON.length -1 ){newY = dataJSON.length -1};
+                        
+                        // remove i from fileNames array
+                        dataJSON.splice(idx,1);
+
+                        // splice filenames array in correct order
+                        dataJSON.splice(newY,0,selectedFile);
+                  }
+                  // draw the detail pane with selected files
+                  displaySelectedFiles();
+
+                  // redraw the list
+                  drawList();
+
+                  // reset isDragged flag
+                  isDragged = false;
                   
-                  // remove i from fileNames array
-                  fileNames.splice(i,1);
+            }
+      }
 
-                  // splice filenames array in correct order
-                  fileNames.splice(newY,0,selectedFile);
-            }
-            else{
-                  // get the text of the file to display
-                  d3.text(selectedFile,function(error,data)
-                        {
-                              if(error){
-                                    return console.error(error);
-                              }
-                              console.log(data);
-                              let detail = d3.select('#detail');
-                              detail.selectAll('text').remove();
-                              detail.selectAll('foreignObject').remove();
-                              detail.append("foreignObject")
-                                    .attr("width", "90%")
-                                    .attr("height", "90%")
-                                    .append("xhtml:body")
-                                    .style("font", "2px 'Helvetica Neue'")
-                                    .html("<div>"+ data + "</div>")
-                        });
-            }
-            // redraw the list
-            drawList();
+      // draw the detail pane with selected files
+      function displaySelectedFiles(){
+            // reordering the list in left pane will order the 
+            // detail pane as well
+
+            let detail = d3.select('#detail');
+                  
+            let selectedFiles = getSelected();
+
+            // empty the pane
+            detail.selectAll('div').remove();
+
+            // add the text for each document
+            var detailDivs = detail.selectAll('div')
+                  .data(selectedFiles)
+                  .enter()
+                  .append("div")
+                  .style("font", "14px 'Helvetica Neue'")
+                  .classed('detailDiv',true)
+                  // change the file 'selected value'
+                  // will remove from right and deselect in list
+            
+                  
+            detailDivs
+                  .append('div')
+                  .text(function(d){return 'X'})
+                  .style('color','red')
+                  .style('padding-bottom', '10px')
+                  .on('click', function(event,d){
+                        // find the item in the data array
+                        let item = dataJSON[dataJSON.indexOf(d)];
+                        console.log(item);
+                        d.selected = 0;
+
+                        // update the list and detail panes
+                        drawList();
+                        displaySelectedFiles();
+                  })
+
+            // add title andcontents to each div
+            detailDivs
+                  .append('div')
+                  .text(function(d){return "File: " + d.name})
+                  .classed('bold',true)
+            
+            detailDivs
+                  .append('div')
+                  .text(function(d){return d.text})
+                  .style('padding-left', '10px')
+                  .style('padding-top', '10px')
+      }
+
+      function getSelected(){
+            let sel = dataJSON.filter(function(item){
+                  return item.selected === 1;
+            })
+            return sel;
+      }
+
+      function getFileContents(fName){
+            let r=null;
+            d3.text('dataset/CIA_19',function(error,data)
+            {
+                  if(error){
+                        return console.error(error);
+                  }
+                  r= data;
+            });
+            return r;
+      }
+
+      function buildJSON(fileContents){
+            var filenamesJSON = [];
+
+            fileNames.map(function(item, index){
+                  let fileTxt = fileContents[index + 1];
+
+                  filenamesJSON.push({
+                        'name': item,
+                        'order': index,
+                        'text' : fileTxt,
+                        'selected' : 0
+                  })
+            })
+            return filenamesJSON;
       }
 
       function getFileNames(){
