@@ -72,9 +72,6 @@
       function drawList(){
             let list = d3.select('#list');
 
-            // remove all the text elements present
-            //list.selectAll('text').remove();
-
             // add text elements based on current file name list
             list.selectAll('text')
                   .data(dataJSON)
@@ -152,6 +149,10 @@
             // set the flag that element has been dragged - ie not a click
             isDragged = true;
 
+            // selected the hover text by class - remove old detail hover
+            let detail = d3.select('#detail');
+            detail.selectAll('.detailHover').remove();
+
             // if in list box
             if(event.x < 20){
                   // adjust x and y of object being dragged
@@ -163,9 +164,6 @@
             }
             // then add '+' to detail pane
             else{
-                  let detail = d3.select('#detail');
-                  // selected the hover text by class - remove old hover
-                  detail.selectAll('.detailHover').remove();
                   let cood = d3.pointer(event)
                   console.log(cood);
 
@@ -224,8 +222,10 @@
                         // splice filenames array in correct order
                         dataJSON.splice(newY,0,selectedFile);
                   }
-                  // draw the detail pane with selected files
-                  displaySelectedFiles();
+                  else{
+                        // draw the detail pane with selected files
+                        displaySelectedFiles();
+                  }
 
                   // redraw the list
                   drawList();
