@@ -221,6 +221,12 @@
 
                         // splice filenames array in correct order
                         dataJSON.splice(newY,0,selectedFile);
+
+                        // if more than one file selected then redraw detail
+                        // may have been a list reorder
+                        if(getSelected().length > 1){
+                              displaySelectedFiles();
+                        }
                   }
                   else{
                         // draw the detail pane with selected files
