@@ -76,7 +76,7 @@
             list.selectAll('text')
                   .data(dataJSON)
                   .join('text')
-                  .text(function(d){return d.name;})
+                  .text(function(d){return d.name.split("/")[1];})
                   .attr('x',function (d){
                         return 1;
                   })
@@ -284,7 +284,7 @@
             // add title andcontents to each div
             detailDivs
                   .append('div')
-                  .text(function(d){return "File: " + d.name})
+                  .text(function(d){return "File: " + d.name.split("/")[1]})
                   .classed('bold',true)
             
             detailDivs

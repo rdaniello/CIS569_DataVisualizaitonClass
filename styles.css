@@ -2,7 +2,7 @@
   height: 100%;
   position: absolute;
   z-index: 1;
-  top: 0;
+  top: 1;
   overflow-x: hidden;
   padding-top: 20px;
 }
