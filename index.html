@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
       <script src="https://d3js.org/d3.v6.js" charset="utf-8"></script>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
       <head> 
             <title> Data Visualization _ CIS569 </title> 
             <meta charset="utf-8"> 
             <link rel="stylesheet" type= "text/css" href="styles.css">
       </head> 
       <body> 
-            <h2>Data Visualization _ CIS569</h2>
-            
-            <div id='listDiv' class="split left" >File List:
+            <div style="text-align: center;">
+                  <h2>Data Visualization CIS569</h2>
+            </div>
+
+            <div id='listDiv' class="split left" >
+                  <div id='listTitle'>Files:</div>
                   <svg id='list'></svg>
             </div>
                 
@@ -33,7 +37,6 @@
 <script>
       let fileNames = getFileNames();
       let dataJSON = [];
-      let selectedFiles = []; // files that have been selected for display
       let isDragged = false;
 
       // load the contents of all files
@@ -51,13 +54,16 @@
       function main(data){
             // build the array of JSON objects
             dataJSON = buildJSON(data);
-            console.log(dataJSON);
+            
+            // set the file count
+            d3.select('#listTitle')
+                  .html("Files: (" + fileNames.length.toString() + ")")
 
             //  initialize the view box for the list
             let vbStr = "0 0 100 " + fileNames.length.toString();
             let list = d3.select('#list');
             list
-                  .style('height',fileNames.length * 12)
+                  .style('height',fileNames.length * 16)
                   .attr('viewBox', vbStr)
             
             let detail = d3.select('#detail');
@@ -83,7 +89,7 @@
                   .attr('y',function (d,i){
                         return i + 1;
                   })
-                  .style('font-size','.9pt')
+                  .style('font-size','.8pt')
                   // assign text color based on whether or not file selected
                   .classed('selected', function(d){
                         if(d.selected){
@@ -95,16 +101,19 @@
                   })
                   .on('mouseenter', function (mouseData, d) {
                         try {
-                        d3.select(this)
-                              .classed('listHover', true)
+                              if(!isDragged){
+                                    d3.select(this)
+                                          .classed('listHover', true)
+                              }
 
                         } catch {}
                   })
                   .on('mouseleave', function (mouseData, d) {
                         try {
-                        d3.select(this)
-                              .classed('listHover', false)
-
+                              if(!isDragged){
+                                    d3.select(this)
+                                          .classed('listHover', false)
+                              }
                         } catch {}
                   })
                   .call(d3.drag()
@@ -146,6 +155,39 @@
       function dragged(event,d) {
             console.log("drag");
 
+            let fff = d3.pointer(event);
+            console.log(fff);
+            //console.log(event.clientX)
+
+            // console.log($("#listDiv").scrollTop());
+            // console.log($("#listDiv").height());
+
+            // get the top and bottom of div scroll position
+            let scrollTopY = $("#listDiv").scrollTop();
+            let scrollBotY = $("#listDiv").scrollTop() + $("#listDiv").height();
+
+            // get the mouse y position in div - subtract margins and padding
+            let currYListPos = scrollTopY  + d3.pointer(event)[1] 
+            console.log(scrollTopY);
+            console.log(scrollBotY);
+            console.log(currYListPos);
+
+            // if mouse position is close to top then scroll list div up
+            if(currYListPos < scrollTopY + 100){
+                  console.log('setting new scroll')
+                  let newScroll = $("#listDiv").scrollTop() - 20;
+                  if(newScroll < 0) {newScroll = 0}
+                  $("#listDiv").scrollTop(newScroll);
+            }
+
+            // if mouse position is close to bottom then scroll list div down
+            if(currYListPos > scrollBotY - 60){
+                  console.log('setting new scroll')
+                  let newScroll = $("#listDiv").scrollTop() + 20;
+                  if(newScroll > scrollBotY - $("#listDiv").height()) {scrollBotY - $("#listDiv").height()}
+                  $("#listDiv").scrollTop(newScroll);
+            }
+
             // set the flag that element has been dragged - ie not a click
             isDragged = true;
 
@@ -153,15 +195,37 @@
             let detail = d3.select('#detail');
             detail.selectAll('.detailHover').remove();
 
+            
+
             // if in list box
             if(event.x < 20){
                   // adjust x and y of object being dragged
                   d3.select(this)
                         .attr('x', event.x)
-                        .attr('y', event.y)
+                        .attr('y', event.y + .5)
                         .classed('listDrag', true)
-                        .classed('listHover', false)
-            }
+                        .classed('listHover', false);
+                  
+                  // add arrow to show drop position
+                  // get current Y to nearest int
+                  let dropY = Math.round(event.y);
+
+                  // get list svg
+                  let list = d3.select("#list")
+
+                  // remove old arrows
+                  list.selectAll('.listLine').remove();
+                  // create d3 path generator
+                  let path = d3.path();
+                  path.moveTo(0,dropY - .5);
+                  path.lineTo(1,dropY);
+                  path.lineTo(0,dropY + .5);
+                  path.closePath();
+                  // append path (arrow) to list
+                  list.append('path')
+                        .attr('d',path)
+                        .classed('listLine',true);
+                  }
             // then add '+' to detail pane
             else{
                   let cood = d3.pointer(event)
@@ -192,18 +256,22 @@
             // only move if item is dragged - set in dragged event
             // otherwise let click event happen
             if(isDragged){
-                  console.log(event.y + "     " + d);
+                  // remove old arrows
+                  let list = d3.select("#list")
+                  list.selectAll('.listLine').remove();
+
                   // get the index of selected file
                   let idx = dataJSON.indexOf(d);
 
                   let selectedFile  = d;
                   console.log("drag ended");
 
-                  let newY = Math.ceil(event.y);
+                  let newY = Math.round(event.y);
 
                   // decide if we are re-ordering list or displaying file
                   // based on how far right the object is dragged
                   if(event.x < 20){ 
+                        //
                         // put the element back where is belongs
                         d3.select(this)
                               .attr('x', 1)
@@ -317,7 +385,7 @@
             var filenamesJSON = [];
 
             fileNames.map(function(item, index){
-                  let fileTxt = fileContents[index + 1];
+                  let fileTxt = fileContents[index];
 
                   filenamesJSON.push({
                         'name': item,
